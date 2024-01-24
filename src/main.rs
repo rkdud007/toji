@@ -1,8 +1,7 @@
 use accumulators::hasher::{keccak::KeccakHasher, Hasher};
-use rlp::{Encodable, RlpStream};
-// use alloy_rlp::{BytesMut, Encodable, RlpDecodable, RlpEncodable};
 use clap::Parser;
 use reqwest::header;
+use rlp::{Encodable, RlpStream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -190,18 +189,10 @@ async fn main() {
     let header_rpc: EvmBlockHeaderFromRpc = serde_json::from_value(body["result"].clone()).unwrap();
     let header: EvmBlockHeader = EvmBlockHeader::from(&header_rpc);
     let rlp = hex::encode(rlp::encode(&header));
-
-    // let mut extradata = BytesMut::new();
-    // header.encode(&mut extradata);
-    // let rlp_encoded_bytes: Bytes = extradata.freeze().into();
-    //let rlp_decoded_header = EvmBlockHeader::decode(&mut buffer.as_slice()).unwrap();
-    // let hex_encoded_header = hex::encode(&rlp_encoded_bytes);
-    // let hex_encoded_header = hex::encode(&rlp_encoded_bytes);
     let hasher = KeccakHasher::new();
-    let block_hash = hasher.hash(vec![rlp]).unwrap();
+    let block_hash = hasher.hash(vec![rlp.clone()]).unwrap();
 
-    // println!("Hex encoded block header :{:?}", rlp);
-    // println!("Block Hash :{:?}", block_hash);
-    // println!("Block Hash :{:?}", hex::encode(block_hash));
-    println!("Block Hash :{:?}", block_hash);
+    println!("Raw Block Header  :{:?}\n", header);
+    println!("RLP Encoded Block Header :{:?}\n", rlp);
+    println!("Block Hash :{:?}\n", block_hash);
 }
