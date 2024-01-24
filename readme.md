@@ -1,6 +1,6 @@
 ## Toji
 
-Blockchain toolkit: CLI application to get `rlp encoded block header`, `raw block header`, `block hash` mainly purpose for debugging block hash/header calculation.
+CLI toolkit for all EVM blockchains, to get `rlp encoded block header`, `raw block header`, `block hash` mainly purpose for debugging block hash/header calculation.
 
 ### Installation
 
