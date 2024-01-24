@@ -1,5 +1,6 @@
-use alloy_primitives::{keccak256, Bytes};
-use alloy_rlp::{BytesMut, Encodable, RlpDecodable, RlpEncodable};
+use accumulators::hasher::{keccak::KeccakHasher, Hasher};
+use rlp::{Encodable, RlpStream};
+// use alloy_rlp::{BytesMut, Encodable, RlpDecodable, RlpEncodable};
 use clap::Parser;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -19,8 +20,7 @@ struct Cli {
     block_number: usize,
 }
 
-#[derive(Debug, RlpDecodable, RlpEncodable, PartialEq)]
-#[rlp(trailing)]
+#[derive(Debug, PartialEq)]
 pub struct EvmBlockHeader {
     pub parent_hash: String,
     pub uncle_hash: String,
@@ -39,6 +39,51 @@ pub struct EvmBlockHeader {
     pub nonce: String,
     pub base_fee_per_gas: Option<u64>,
     pub withdrawals_root: Option<String>,
+}
+
+impl Encodable for EvmBlockHeader {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        let with_base_fee_per_gas = if self.base_fee_per_gas.is_some() {
+            1
+        } else {
+            0
+        };
+
+        let with_withdrawals_root = if self.withdrawals_root.is_some() {
+            1
+        } else {
+            0
+        };
+
+        let len = 15 + with_base_fee_per_gas + with_withdrawals_root;
+
+        s.begin_list(len);
+        s.append(&hex::decode(&self.parent_hash[2..]).unwrap());
+        s.append(&hex::decode(&self.uncle_hash[2..]).unwrap());
+        s.append(&hex::decode(&self.coinbase[2..]).unwrap());
+        s.append(&hex::decode(&self.state_root[2..]).unwrap());
+        s.append(&hex::decode(&self.transactions_root[2..]).unwrap());
+        s.append(&hex::decode(&self.receipts_root[2..]).unwrap());
+        s.append(&hex::decode(&self.logs_bloom[2..]).unwrap());
+        if self.difficulty == 0 {
+            s.append(&hex::decode(&"0x"[2..]).unwrap());
+        } else {
+            s.append(&self.difficulty);
+        }
+        s.append(&self.number);
+        s.append(&self.gas_limit);
+        s.append(&self.gas_used);
+        s.append(&self.timestamp);
+        s.append(&hex::decode(&self.extra_data[2..]).unwrap());
+        s.append(&hex::decode(&self.mix_hash[2..]).unwrap());
+        s.append(&hex::decode(&self.nonce[2..]).unwrap());
+        if let Some(x) = self.base_fee_per_gas {
+            s.append(&x);
+        }
+        if let Some(x) = &self.withdrawals_root {
+            s.append(&hex::decode(&x[2..]).unwrap());
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -144,17 +189,19 @@ async fn main() {
     let body: Value = response.json().await.unwrap();
     let header_rpc: EvmBlockHeaderFromRpc = serde_json::from_value(body["result"].clone()).unwrap();
     let header: EvmBlockHeader = EvmBlockHeader::from(&header_rpc);
+    let rlp = hex::encode(rlp::encode(&header));
 
-    let mut extradata = BytesMut::new();
-    header.encode(&mut extradata);
-    let rlp_encoded_bytes: Bytes = extradata.freeze().into();
+    // let mut extradata = BytesMut::new();
+    // header.encode(&mut extradata);
+    // let rlp_encoded_bytes: Bytes = extradata.freeze().into();
     //let rlp_decoded_header = EvmBlockHeader::decode(&mut buffer.as_slice()).unwrap();
     // let hex_encoded_header = hex::encode(&rlp_encoded_bytes);
-    let hex_encoded_header = hex::encode(&rlp_encoded_bytes);
-    let block_hash = keccak256(&rlp_encoded_bytes);
+    // let hex_encoded_header = hex::encode(&rlp_encoded_bytes);
+    let hasher = KeccakHasher::new();
+    let block_hash = hasher.hash(vec![rlp]).unwrap();
 
-    println!("Hex encoded block header :{:?}", rlp_encoded_bytes);
-    println!("Block Hash :{:?}", block_hash);
-    println!("Block Hash :{:?}", hex::encode(block_hash));
+    // println!("Hex encoded block header :{:?}", rlp);
     // println!("Block Hash :{:?}", block_hash);
+    // println!("Block Hash :{:?}", hex::encode(block_hash));
+    println!("Block Hash :{:?}", block_hash);
 }
