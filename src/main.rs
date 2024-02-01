@@ -150,6 +150,7 @@ async fn main() {
     let rlp_decode = hex::decode(rlp.clone()).unwrap();
 
     let block_hash = keccak256(rlp_decode);
+    println!("Raw JSON Block Header :{:?}\n", header_rpc);
     println!("Raw Block Header  :{:?}\n", header);
     println!("RLP Encoded Block Header :{:?}\n", rlp);
     println!("Block Hash :{:?}\n", block_hash);
