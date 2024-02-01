@@ -2,6 +2,8 @@
 
 CLI toolkit for all EVM blockchains, to get `rlp encoded block header`, `raw block header`, `block hash` mainly purpose for debugging block hash/header calculation.
 
+Note: It does not handling Dencun update yet
+
 ### Installation
 
 ```
@@ -11,12 +13,14 @@ cargo install --git https://github.com/rkdud007/toji --locked --force
 ### Usage
 
 ```
-Usage: toji --rpc-url <RPC_URL> --block-number <BLOCK_NUMBER>
+❯ toji --help
+Usage: toji [OPTIONS] --rpc-url <RPC_URL> --block-number <BLOCK_NUMBER>
 
 Options:
+  -a, --use-alloy <USE_ALLOY>        Use Alloy RLP encoding. Default is false. [possible values: true, false]
   -r, --rpc-url <RPC_URL>            The RPC endpoint
   -n, --block-number <BLOCK_NUMBER>  The block number to query
-  -h, --help                         Print help
+  -h, --help                         Print help                      Print help
 ```
 
 ### Example
