@@ -1,13 +1,24 @@
 use accumulators::hasher::{keccak::KeccakHasher, Hasher};
+use alloy_primitives::{
+    hex::{encode as alloy_encode, FromHex},
+    keccak256,
+};
+use alloy_rlp::{Decodable, Encodable, RlpDecodable, RlpEncodable};
 use clap::Parser;
+
 use reqwest::header;
-use rlp::{Encodable, RlpStream};
+use rlp::{Encodable as RlpEncodable, RlpStream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
 #[derive(Debug, Parser)]
 struct Cli {
+    #[arg(short = 'a', long)]
+    #[arg(value_name = "USE_ALLOY")]
+    #[arg(help = "Use Alloy RLP encoding. Default is false.")]
+    use_alloy: Option<bool>,
+
     #[arg(short = 'r', long)]
     #[arg(value_name = "RPC_URL")]
     #[arg(help = "The RPC endpoint")]
@@ -19,7 +30,8 @@ struct Cli {
     block_number: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, RlpDecodable, RlpEncodable, PartialEq)]
+#[rlp(trailing)]
 pub struct EvmBlockHeader {
     pub parent_hash: String,
     pub uncle_hash: String,
@@ -40,7 +52,22 @@ pub struct EvmBlockHeader {
     pub withdrawals_root: Option<String>,
 }
 
-impl Encodable for EvmBlockHeader {
+impl EvmBlockHeader {
+    pub fn from_rlp_hexstring(rlp_hexstring: &str) -> Self {
+        let buffer = Vec::<u8>::from_hex(rlp_hexstring).unwrap();
+        println!("{:?}", buffer);
+        let rlp_decoded_header = EvmBlockHeader::decode(&mut buffer.as_slice()).unwrap();
+        rlp_decoded_header
+    }
+
+    pub fn to_rlp_hexstring(&self) -> String {
+        let mut buffer = Vec::<u8>::new();
+        self.encode(&mut buffer);
+        alloy_encode(buffer)
+    }
+}
+
+impl RlpEncodable for EvmBlockHeader {
     fn rlp_append(&self, s: &mut RlpStream) {
         let with_base_fee_per_gas = if self.base_fee_per_gas.is_some() {
             1
@@ -188,11 +215,25 @@ async fn main() {
     let body: Value = response.json().await.unwrap();
     let header_rpc: EvmBlockHeaderFromRpc = serde_json::from_value(body["result"].clone()).unwrap();
     let header: EvmBlockHeader = EvmBlockHeader::from(&header_rpc);
-    let rlp = hex::encode(rlp::encode(&header));
-    let hasher = KeccakHasher::new();
-    let block_hash = hasher.hash(vec![rlp.clone()]).unwrap();
 
-    println!("Raw Block Header  :{:?}\n", header);
-    println!("RLP Encoded Block Header :{:?}\n", rlp);
-    println!("Block Hash :{:?}\n", block_hash);
+    match args.use_alloy {
+        Some(true) => {
+            let rlp = header.to_rlp_hexstring();
+            // let hasher = KeccakHasher::new();
+            // let block_hash = hasher.hash(vec![rlp.clone()]).unwrap();
+            let block_hash = keccak256(&rlp);
+            println!("Raw Block Header  :{:?}\n", header);
+            println!("RLP Encoded Block Header :{:?}\n", rlp);
+            println!("Block Hash :{:?}\n", block_hash);
+        }
+        _ => {
+            let rlp = hex::encode(rlp::encode(&header));
+            let hasher = KeccakHasher::new();
+            let block_hash = hasher.hash(vec![rlp.clone()]).unwrap();
+
+            println!("Raw Block Header  :{:?}\n", header);
+            println!("RLP Encoded Block Header :{:?}\n", rlp);
+            println!("Block Hash :{:?}\n", block_hash);
+        }
+    }
 }
