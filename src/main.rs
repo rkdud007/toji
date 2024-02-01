@@ -1,8 +1,8 @@
-use alloy_primitives::keccak256;
+use alloy_primitives::{keccak256, Address, Bloom, Bytes, FixedBytes};
+use alloy_rlp::Encodable;
 use clap::Parser;
 use reqwest::header;
-use reth_primitives::{Bloom, Bytes, Header, H160, H256};
-use reth_rlp::Encodable;
+use reth_primitives::Header;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
@@ -51,12 +51,12 @@ pub struct EvmBlockHeaderFromRpc {
 impl From<&EvmBlockHeaderFromRpc> for Header {
     fn from(value: &EvmBlockHeaderFromRpc) -> Self {
         Self {
-            parent_hash: H256::from_str(&value.parent_hash).unwrap(),
-            ommers_hash: H256::from_str(&value.sha3_uncles).unwrap(),
-            beneficiary: H160::from_str(&value.miner).unwrap(),
-            state_root: H256::from_str(&value.state_root).unwrap(),
-            transactions_root: H256::from_str(&value.transactions_root).unwrap(),
-            receipts_root: H256::from_str(&value.receipts_root).unwrap(),
+            parent_hash: FixedBytes::from_str(&value.parent_hash).unwrap(),
+            ommers_hash: FixedBytes::from_str(&value.sha3_uncles).unwrap(),
+            beneficiary: Address::from_str(&value.miner).unwrap(),
+            state_root: FixedBytes::from_str(&value.state_root).unwrap(),
+            transactions_root: FixedBytes::from_str(&value.transactions_root).unwrap(),
+            receipts_root: FixedBytes::from_str(&value.receipts_root).unwrap(),
             logs_bloom: Bloom::from_str(&value.logs_bloom).unwrap(),
             difficulty: value.difficulty.parse().unwrap(),
             number: u64::from_str_radix(value.number.trim_start_matches("0x"), 16).unwrap(),
@@ -64,7 +64,7 @@ impl From<&EvmBlockHeaderFromRpc> for Header {
             gas_used: u64::from_str_radix(value.gas_used.trim_start_matches("0x"), 16).unwrap(),
             timestamp: u64::from_str_radix(value.timestamp.trim_start_matches("0x"), 16).unwrap(),
             extra_data: Bytes::from_str(&value.extra_data).unwrap(),
-            mix_hash: H256::from_str(&value.mix_hash).unwrap(),
+            mix_hash: FixedBytes::from_str(&value.mix_hash).unwrap(),
             nonce: u64::from_str_radix(value.nonce.trim_start_matches("0x"), 16).unwrap(),
             base_fee_per_gas: value
                 .base_fee_per_gas
@@ -73,7 +73,7 @@ impl From<&EvmBlockHeaderFromRpc> for Header {
             withdrawals_root: value
                 .withdrawals_root
                 .as_ref()
-                .map(|x| H256::from_str(x).unwrap()),
+                .map(|x| FixedBytes::from_str(x).unwrap()),
             blob_gas_used: value
                 .blob_gas_used
                 .as_ref()
@@ -85,7 +85,7 @@ impl From<&EvmBlockHeaderFromRpc> for Header {
             parent_beacon_block_root: value
                 .parent_beacon_block_root
                 .as_ref()
-                .map(|x| H256::from_str(x).unwrap()),
+                .map(|x| FixedBytes::from_str(x).unwrap()),
         }
     }
 }
