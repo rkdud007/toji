@@ -53,10 +53,11 @@ impl BlockHeaderShanghai {
         rlp_decoded_header
     }
 
-    pub fn to_rlp_hexstring(&self) -> String {
+    pub fn to_rlp_hexstring(&self) -> Vec<u8> {
         let mut buffer = Vec::<u8>::new();
         self.encode(&mut buffer);
-        encode(buffer)
+        println!("buffer: {:?}", buffer);
+        buffer
     }
 }
 
@@ -161,10 +162,11 @@ async fn main() {
         return println!("Request failed with status code {}", response.status());
     }
     let body: Value = response.json().await.unwrap();
+    println!("Raw Block Header  :{:?}\n", body);
     let header_rpc: EvmBlockHeaderFromRpc = serde_json::from_value(body["result"].clone()).unwrap();
     let header: BlockHeaderShanghai = BlockHeaderShanghai::from(&header_rpc);
     let rlp = header.to_rlp_hexstring();
-    let block_hash = keccak256(rlp.as_bytes()).to_string();
+    let block_hash = keccak256(&rlp).to_string();
 
     println!("Raw Block Header  :{:?}\n", header);
     println!("RLP Encoded Block Header :{:?}\n", rlp);
