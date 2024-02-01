@@ -1,7 +1,11 @@
-use accumulators::hasher::{keccak::KeccakHasher, Hasher};
+use alloy_primitives::{
+    hex::{encode, FromHex},
+    keccak256,
+};
+use alloy_rlp::{Decodable, Encodable, RlpDecodable, RlpEncodable};
 use clap::Parser;
 use reqwest::header;
-use rlp::{Encodable, RlpStream};
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -19,8 +23,9 @@ struct Cli {
     block_number: usize,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct EvmBlockHeader {
+#[derive(Debug, RlpDecodable, RlpEncodable, PartialEq)]
+#[rlp(trailing)]
+pub struct BlockHeaderShanghai {
     pub parent_hash: String,
     pub uncle_hash: String,
     pub coinbase: String,
@@ -40,48 +45,18 @@ pub struct EvmBlockHeader {
     pub withdrawals_root: Option<String>,
 }
 
-impl Encodable for EvmBlockHeader {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        let with_base_fee_per_gas = if self.base_fee_per_gas.is_some() {
-            1
-        } else {
-            0
-        };
+impl BlockHeaderShanghai {
+    pub fn from_rlp_hexstring(rlp_hexstring: &str) -> Self {
+        let buffer = Vec::<u8>::from_hex(rlp_hexstring).unwrap();
+        println!("{:?}", buffer);
+        let rlp_decoded_header = BlockHeaderShanghai::decode(&mut buffer.as_slice()).unwrap();
+        rlp_decoded_header
+    }
 
-        let with_withdrawals_root = if self.withdrawals_root.is_some() {
-            1
-        } else {
-            0
-        };
-
-        let len = 15 + with_base_fee_per_gas + with_withdrawals_root;
-
-        s.begin_list(len);
-        s.append(&hex::decode(&self.parent_hash[2..]).unwrap());
-        s.append(&hex::decode(&self.uncle_hash[2..]).unwrap());
-        s.append(&hex::decode(&self.coinbase[2..]).unwrap());
-        s.append(&hex::decode(&self.state_root[2..]).unwrap());
-        s.append(&hex::decode(&self.transactions_root[2..]).unwrap());
-        s.append(&hex::decode(&self.receipts_root[2..]).unwrap());
-        s.append(&hex::decode(&self.logs_bloom[2..]).unwrap());
-        if self.difficulty == 0 {
-            s.append(&hex::decode(&"0x"[2..]).unwrap());
-        } else {
-            s.append(&self.difficulty);
-        }
-        s.append(&self.number);
-        s.append(&self.gas_limit);
-        s.append(&self.gas_used);
-        s.append(&self.timestamp);
-        s.append(&hex::decode(&self.extra_data[2..]).unwrap());
-        s.append(&hex::decode(&self.mix_hash[2..]).unwrap());
-        s.append(&hex::decode(&self.nonce[2..]).unwrap());
-        if let Some(x) = self.base_fee_per_gas {
-            s.append(&x);
-        }
-        if let Some(x) = &self.withdrawals_root {
-            s.append(&hex::decode(&x[2..]).unwrap());
-        }
+    pub fn to_rlp_hexstring(&self) -> String {
+        let mut buffer = Vec::<u8>::new();
+        self.encode(&mut buffer);
+        encode(buffer)
     }
 }
 
@@ -110,7 +85,7 @@ pub struct EvmBlockHeaderFromRpc {
     pub withdrawals_root: Option<String>,
 }
 
-impl From<&EvmBlockHeaderFromRpc> for EvmBlockHeader {
+impl From<&EvmBlockHeaderFromRpc> for BlockHeaderShanghai {
     fn from(value: &EvmBlockHeaderFromRpc) -> Self {
         Self {
             parent_hash: value.parent_hash.clone(),
@@ -187,10 +162,9 @@ async fn main() {
     }
     let body: Value = response.json().await.unwrap();
     let header_rpc: EvmBlockHeaderFromRpc = serde_json::from_value(body["result"].clone()).unwrap();
-    let header: EvmBlockHeader = EvmBlockHeader::from(&header_rpc);
-    let rlp = hex::encode(rlp::encode(&header));
-    let hasher = KeccakHasher::new();
-    let block_hash = hasher.hash(vec![rlp.clone()]).unwrap();
+    let header: BlockHeaderShanghai = BlockHeaderShanghai::from(&header_rpc);
+    let rlp = header.to_rlp_hexstring();
+    let block_hash = keccak256(rlp.as_bytes()).to_string();
 
     println!("Raw Block Header  :{:?}\n", header);
     println!("RLP Encoded Block Header :{:?}\n", rlp);
