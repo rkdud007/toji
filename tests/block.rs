@@ -1,6 +1,6 @@
 use alloy_primitives::{keccak256, FixedBytes, U256};
-use reth_primitives::{Bytes, Header, H256};
-use reth_rlp::{Decodable, Encodable};
+use alloy_rlp::{Decodable, Encodable};
+use reth_primitives::{Bytes, Header};
 use std::str::FromStr;
 
 #[test]
@@ -14,10 +14,10 @@ fn test_decode_block_header() {
         gas_used: 0x15b3u64,
         timestamp: 0x1a0au64,
         extra_data: Bytes::from_str("7788").unwrap(),
-        ommers_hash: H256::zero(),
-        state_root: H256::zero(),
-        transactions_root: H256::zero(),
-        receipts_root: H256::zero(),
+        ommers_hash: FixedBytes::default(),
+        state_root: FixedBytes::default(),
+        transactions_root: FixedBytes::default(),
+        receipts_root: FixedBytes::default(),
         ..Default::default()
     };
 
@@ -31,12 +31,10 @@ fn test_decode_block_header() {
 
     let is_this_blockhash = keccak256(buffer.clone());
 
-    let expected_hash_with_alloy =
+    let expected_hash =
         FixedBytes::from_str("8c2f2af15b7b563b6ab1e09bed0e9caade7ed730aec98b70a993597a797579a9")
             .unwrap();
 
-    let expected_hash_with_reth =
-        H256::from_str("8c2f2af15b7b563b6ab1e09bed0e9caade7ed730aec98b70a993597a797579a9").unwrap();
-    assert_eq!(header.hash_slow(), expected_hash_with_reth);
-    assert_eq!(is_this_blockhash, expected_hash_with_alloy);
+    assert_eq!(header.hash_slow(), expected_hash);
+    assert_eq!(is_this_blockhash, expected_hash);
 }
